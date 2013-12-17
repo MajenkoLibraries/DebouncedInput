@@ -28,33 +28,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DEBOUNCEDINPUT_H
-#define _DEBOUNCEDINPUT_H
+/*
+ * TwoButton.ino
+ *
+ * Two buttons connected between pins 3/GND and 4/GND.  Two LEDs connected to
+ * pins 12 and 13 with respective resistors.  Press one button and an LED
+ * toggles.  Press the other button and the other LED toggles.
+ */
 
-#if ARDUINO >= 100
-# include <Arduino.h>
-#else
-# include <WProgram.h>
-#endif
+#include <DebouncedInput.h>
 
-class DebouncedInput
-{
-  private:
-    byte pin;
-    int value;
-    unsigned long lastChange;
-    unsigned long debounceTime;
-    int lrt;
-    boolean pullup;
-    int lastValue;
-    
-  public:
-    DebouncedInput(byte pin_, unsigned long dbt_, boolean pullup_);
-    void begin();
-    int read();
-    boolean changed();
-    boolean changed(uint8_t *val);
-    boolean changedTo(uint8_t val);
-};
+const uint8_t button1Pin = 3;
+const uint8_t button2Pin = 4;
+const uint8_t led1Pin = 12;
+const uint8_t led2Pin = 13;
 
-#endif
+// Create a new debounced button on pin 3, with a 20ms debounce period.  Enable
+// the internal pullup resistor.
+DebouncedInput button1(button1Pin, 20, true);
+
+// Do the same on pin 4:
+DebouncedInput button2(button2Pin, 20, true);
+
+uint8_t led1State = LOW;
+uint8_t led2State = LOW;
+
+void setup() {
+    pinMode(led1Pin, OUTPUT);
+    pinMode(led2Pin, OUTPUT);
+    digitalWrite(led1Pin, led1State);
+    digitalWrite(led2Pin, led2State);
+
+    // Initialise the button pins and get the current
+    // button state
+    button1.begin();
+    button2.begin();
+}
+
+void loop() {
+    // If a button has changed from high to low (changedTo(LOW)) then
+    // toggle the respective LED.
+    if (button1.changedTo(LOW)) {
+        led1State = !led1State;
+        digitalWrite(led1Pin, led1State);
+    }
+    if (button2.changedTo(LOW)) {
+        led2State = !led2State;
+        digitalWrite(led2Pin, led2State);
+    }
+}
