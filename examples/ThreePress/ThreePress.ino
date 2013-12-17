@@ -28,41 +28,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DEBOUNCEDINPUT_H
-#define _DEBOUNCEDINPUT_H
+/*
+ * Press a button 3 times within 2 seconds to trigger the action
+ */
 
-#if ARDUINO >= 100
-# include <Arduino.h>
-#else
-# include <WProgram.h>
-#endif
+#include <DebouncedInput.h>
 
-#include <stdlib.h>
+// We want to keep 3 entries.  That will allocate 24 extra bytes in the object -
+// 2 arrays * 3 entries * 4 bytes per entry (unsigned long)
+const uint8_t numToKeep = 3;
 
-class DebouncedInput
-{
-  private:
-    byte _pin;
-    int _value;
-    unsigned long _lastChange;
-    unsigned long _debounceTime;
-    int _lrt;
-    boolean _pullup;
-    int _lastValue;
-    unsigned long *_lastHigh;
-    unsigned long *_lastLow;
-    uint8_t _keep;
-    
-  public:
-    DebouncedInput(byte pin, unsigned long dbt, boolean pullup, uint8_t keep = 0);
-    void begin();
-    int read();
-    boolean changed();
-    boolean changed(uint8_t *val);
-    boolean changedTo(uint8_t val);
-    unsigned long getHighTime(uint8_t seq = 0);
-    unsigned long getLowTime(uint8_t seq = 0);
-    void clearTimes();
-};
+// We want the button on pin 3.
+const uint8_t buttonPin = 3;
 
-#endif
+// 20ms debounce time, with the internal pull-up enabled
+DebouncedInput button(buttonPin, 20, true, numToKeep);
+
+void setup() {
+	// Set the pinMode and get the initial button state.
+	button.begin();
+	Serial.begin(9600);
+}
+
+void loop() {
+
+	// If the state has changed to low then check the time of a press 2 times ago.  If it was
+	// fast enough, then tell us, and clear out the button press times.
+	if (button.changedTo(LOW)) {
+		if ((button.getLowTime(2) > 0) && (millis() - button.getLowTime(2) < 2000)) {
+			Serial.println(F("You pressed it!"));
+			button.clearTimes();
+		}
+	}
+}

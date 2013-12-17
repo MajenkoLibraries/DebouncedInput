@@ -128,3 +128,11 @@ unsigned long DebouncedInput::getLowTime(uint8_t seq) {
     return _lastLow[seq];
 }
 
+void DebouncedInput::clearTimes() {
+    if (_keep == 0) {
+        return;
+    }
+    for (int i = 0; i < _keep; i++) {
+        _lastLow[i] = _lastHigh[i] = 0;
+    }
+}
