@@ -30,46 +30,70 @@
 
 #include <DebouncedInput.h>
 
-DebouncedInput::DebouncedInput(byte pin_, unsigned long dbt_, boolean pullup_ = true)
+DebouncedInput::DebouncedInput(byte pin, unsigned long dbt, boolean pullup = true, uint8_t keep)
 {
-    this->pin = pin_;
-    this->debounceTime = dbt_;
-    this->pullup = pullup_;
+    _pin = pin;
+    _debounceTime = dbt;
+    _pullup = pullup;
+    _keep = keep;
+    if (_keep > 0) {
+        _lastHigh = (unsigned long *)malloc(_keep * sizeof(unsigned long));
+        _lastLow = (unsigned long *)malloc(_keep * sizeof(unsigned long));
+        for (int i = 0; i < _keep; i++) {
+            _lastHigh[i] = _lastLow[i] = 0;
+        }
+    } else {
+        _lastHigh = NULL;
+        _lastLow = NULL;
+    }
 }
 
 void DebouncedInput::begin()
 {
-    if (this->pullup) {
-        pinMode(this->pin, INPUT_PULLUP);
+    if (_pullup) {
+        pinMode(_pin, INPUT_PULLUP);
     } else {
-        pinMode(this->pin, INPUT);
+        pinMode(_pin, INPUT);
     }
-    this->value = digitalRead(this->pin);
-    this->lastValue = this->value;
+    _value = digitalRead(_pin);
+    _lastValue = _value;
 }
 
 int DebouncedInput::read() 
 {
     int r;
     unsigned long now = millis();
-    r = digitalRead(this->pin);
-    if (r != this->lrt) {
-        this->lrt = r;
-        this->lastChange = now;
+    r = digitalRead(_pin);
+    if (r != _lrt) {
+        _lrt = r;
+        _lastChange = now;
     }
-    if (now - this->lastChange > this->debounceTime) {
-        if (this->value != this->lrt) {
-            this->value = this->lrt;
+    if (now - _lastChange > _debounceTime) {
+        if (_value != _lrt) {
+            _value = _lrt;
+            if (_keep > 0) {
+                if (_value) {
+                    for (int i = _keep-1; i > 0; i--) {
+                        _lastHigh[i] = _lastHigh[i-1];
+                    }
+                    _lastHigh[0] = now;
+                } else {
+                    for (int i = _keep-1; i > 0; i--) {
+                        _lastLow[i] = _lastLow[i-1];
+                    }
+                    _lastLow[0] = now;
+                }
+            }
         }
     }
-    return this->value;
+    return _value;
 }
 
 boolean DebouncedInput::changed()
 {
-    int r = this->read();
-    if (r != this->lastValue) {
-        this->lastValue = r;
+    int r = read();
+    if (r != _lastValue) {
+        _lastValue = r;
         return true;
     }
     return false;
@@ -77,7 +101,7 @@ boolean DebouncedInput::changed()
 
 boolean DebouncedInput::changed(uint8_t *val) {
     if (changed()) {
-        *val = this->lastValue;
+        *val = _lastValue;
         return true;
     }
     return false;
@@ -85,7 +109,22 @@ boolean DebouncedInput::changed(uint8_t *val) {
 
 boolean DebouncedInput::changedTo(uint8_t val) {
     if (changed()) {
-        return val == this->lastValue;
+        return val == _lastValue;
     }
     return false;
 }
+
+unsigned long DebouncedInput::getHighTime(uint8_t seq) {
+    if (seq >= _keep) {
+        return 0;
+    }
+    return _lastHigh[seq];
+}
+
+unsigned long DebouncedInput::getLowTime(uint8_t seq) {
+    if (seq >= _keep) {
+        return 0;
+    }
+    return _lastLow[seq];
+}
+

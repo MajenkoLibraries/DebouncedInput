@@ -28,40 +28,46 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _DEBOUNCEDINPUT_H
-#define _DEBOUNCEDINPUT_H
+/*
+ * This sketch will demonstrate the ability to log a number of previous state changes.
+ * If the "keep" parameter is specified to the DebouncedInput constructor (parameter
+ * 4) a pair of arrays are maintained internally with the timestamps of the previous
+ * respective state changes.  The arrays operate as a FIFD register (First In First
+ * Dropped) and values shift down through the array from entry 0 (the newest) to
+ * the last entry (the oldest).
+ */
 
-#if ARDUINO >= 100
-# include <Arduino.h>
-#else
-# include <WProgram.h>
-#endif
+#include <DebouncedInput.h>
 
-#include <stdlib.h>
+// We want to keep 10 entries.  That will allocate 80 extra bytes in the object -
+// 2 arrays * 10 entries * 4 bytes per entry (unsigned long)
+const uint8_t numToKeep = 10;
 
-class DebouncedInput
-{
-  private:
-    byte _pin;
-    int _value;
-    unsigned long _lastChange;
-    unsigned long _debounceTime;
-    int _lrt;
-    boolean _pullup;
-    int _lastValue;
-    unsigned long *_lastHigh;
-    unsigned long *_lastLow;
-    uint8_t _keep;
-    
-  public:
-    DebouncedInput(byte pin, unsigned long dbt, boolean pullup, uint8_t keep = 0);
-    void begin();
-    int read();
-    boolean changed();
-    boolean changed(uint8_t *val);
-    boolean changedTo(uint8_t val);
-    unsigned long getHighTime(uint8_t seq = 0);
-    unsigned long getLowTime(uint8_t seq = 0);
-};
+// We want the button on pin 3.
+const uint8_t buttonPin = 3;
 
-#endif
+// 20ms debounce time, with the internal pull-up enabled
+DebouncedInput button(buttonPin, 20, true, numToKeep);
+
+void setup() {
+	// Set the pinMode and get the initial button state.
+	button.begin();
+	Serial.begin(9600);
+}
+
+void loop() {
+
+	// If the state has changed to low then, for each of the previous 10 entries,
+	// print the difference between them and the current time.
+	if (button.changedTo(LOW)) {
+		unsigned long now = millis();
+		Serial.print(F("Time since last "));
+		Serial.print(numToKeep);
+		Serial.println(F(" button presses:"));
+		for (int i = 0; i < 10; i++) {
+			Serial.print(F("  "));
+			Serial.print(now - button.getLowTime(i));
+			Serial.println(F("ms"));
+		}
+	}
+}
