@@ -63,6 +63,13 @@ class DebouncedInput
     unsigned long getHighTime(uint8_t seq = 0);
     unsigned long getLowTime(uint8_t seq = 0);
     void clearTimes();
+#ifdef __PIC32MX__
+    uint32_t _intTime;
+    int _intDir;
+    void attachInterrupt(void (*func)(int), int dir);
+    void callOnChange();
+    void (*_onChange)(int);
+#endif
 };
 
 #endif

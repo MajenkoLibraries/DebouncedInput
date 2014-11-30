@@ -136,3 +136,93 @@ void DebouncedInput::clearTimes() {
         _lastLow[i] = _lastHigh[i] = 0;
     }
 }
+
+#ifdef __PIC32MX__
+struct CNInputs {
+    DebouncedInput *in;
+    struct CNInputs *next;
+};
+
+struct CNInputs *ChangeNotificationInputList = NULL;
+
+
+extern "C" {
+    void __attribute__((interrupt, ipl1)) DebouncedInputChangeNotificationHandler() {
+        struct CNInputs *scan;
+        for (scan = ChangeNotificationInputList; scan; scan = scan->next) {
+            scan->in->callOnChange();
+        }
+        clearIntFlag(_CHANGE_NOTICE_IRQ);
+    }
+}
+
+void DebouncedInput::callOnChange() {
+    int r = digitalRead(_pin);
+    if (r != _lastValue) {
+        _lastValue = r;
+        if (r == LOW && _intDir == FALLING) {
+            if ((_intTime == 0) || ((millis() - _intTime) > _debounceTime)) {
+                _intTime = millis();
+                _onChange(_lastValue);
+            }
+        } else if (r == HIGH && _intDir == RISING) {
+            if ((_intTime == 0) || ((millis() - _intTime) > _debounceTime)) {
+                _intTime = millis();
+                _onChange(_lastValue);
+            }
+        }
+    }
+}
+
+void DebouncedInput::attachInterrupt(void (*func)(int), int dir) {
+    int cn = digitalPinToCN(_pin);
+
+//    Serial.print("CN=");
+//    Serial.println(cn, DEC);
+
+    if (cn == NOT_CN_PIN) {
+        return;
+    }
+
+    setIntVector(_CHANGE_NOTICE_VECTOR, &DebouncedInputChangeNotificationHandler);
+//    setIntPriority(_CHANGE_NOTICE_IRQ, 6, 0);
+//    clearIntFlag(_CHANGE_NOTICE_IRQ);
+//    setIntEnable(_CHANGE_NOTICE_IRQ);
+//    enableInterrupts();
+
+    CNENSET = cn;
+    IFS1bits.CNIF=0;
+    IEC1bits.CNIE=1;
+    IPC6bits.CNIP   =   _CN_IPL_IPC;
+    IPC6bits.CNIS   =   _CN_SPL_IPC;
+    CNCONbits.ON    =   1;
+    CNCONbits.SIDL  =   0;
+
+//    Serial.println("Configured");
+
+
+//    CNCONbits.ON    =   1;
+//    CNCONbits.SIDL  =   0;
+
+//    Serial.print("Set = ");
+//    Serial.println(CNEN, HEX);
+
+    _onChange = func;
+    _intDir = dir;
+    _intTime = 0;
+
+    if (ChangeNotificationInputList == NULL) {
+        ChangeNotificationInputList = (struct CNInputs *)malloc(sizeof(struct CNInputs));
+        ChangeNotificationInputList->in = this;
+        ChangeNotificationInputList->next = NULL;
+        return;
+    }
+
+    struct CNInputs *scan;
+    for (scan = ChangeNotificationInputList; scan->next; scan = scan->next);
+    scan->next = (struct CNInputs *)malloc(sizeof(struct CNInputs));
+    scan->next->next = NULL;
+    scan->next->in = this;
+}
+
+#endif
