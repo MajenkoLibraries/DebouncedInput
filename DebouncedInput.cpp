@@ -137,7 +137,7 @@ void DebouncedInput::clearTimes() {
     }
 }
 
-#ifdef __PIC32MX__
+#if defined(__PIC32MX__) || defined(__PIC32MZ__)
 struct CNInputs {
     DebouncedInput *in;
     struct CNInputs *next;
@@ -145,15 +145,25 @@ struct CNInputs {
 
 struct CNInputs *ChangeNotificationInputList = NULL;
 
+void __attribute__((interrupt)) DebouncedInputChangeNotificationHandler() {
+    struct CNInputs *scan;
 
-extern "C" {
-    void __attribute__((interrupt, ipl1)) DebouncedInputChangeNotificationHandler() {
-        struct CNInputs *scan;
-        for (scan = ChangeNotificationInputList; scan; scan = scan->next) {
-            scan->in->callOnChange();
-        }
-        clearIntFlag(_CHANGE_NOTICE_IRQ);
+    (void)PORTA;
+    for (scan = ChangeNotificationInputList; scan; scan = scan->next) {
+        scan->in->callOnChange();
     }
+#ifdef _CHANGE_NOTICE_IRQ
+    clearIntFlag(_CHANGE_NOTICE_IRQ);
+#endif
+#ifdef _CHANGE_NOTICE_A_IRQ
+    clearIntFlag(_CHANGE_NOTICE_A_IRQ);
+#endif
+#ifdef _CHANGE_NOTICE_B_IRQ
+    clearIntFlag(_CHANGE_NOTICE_B_IRQ);
+#endif
+#ifdef _CHANGE_NOTICE_C_IRQ
+    clearIntFlag(_CHANGE_NOTICE_C_IRQ);
+#endif
 }
 
 void DebouncedInput::callOnChange() {
@@ -175,38 +185,53 @@ void DebouncedInput::callOnChange() {
 }
 
 void DebouncedInput::attachInterrupt(void (*func)(int), int dir) {
-    int cn = digitalPinToCN(_pin);
 
-//    Serial.print("CN=");
-//    Serial.println(cn, DEC);
+#if defined(CNEN)
+    int cn = digitalPinToCN(_pin);
 
     if (cn == NOT_CN_PIN) {
         return;
     }
 
-    setIntVector(_CHANGE_NOTICE_VECTOR, &DebouncedInputChangeNotificationHandler);
-//    setIntPriority(_CHANGE_NOTICE_IRQ, 6, 0);
-//    clearIntFlag(_CHANGE_NOTICE_IRQ);
-//    setIntEnable(_CHANGE_NOTICE_IRQ);
-//    enableInterrupts();
-
     CNENSET = cn;
-    IFS1bits.CNIF=0;
-    IEC1bits.CNIE=1;
-    IPC6bits.CNIP   =   _CN_IPL_IPC;
-    IPC6bits.CNIS   =   _CN_SPL_IPC;
     CNCONbits.ON    =   1;
     CNCONbits.SIDL  =   0;
+    setIntVector(_CHANGE_NOTICE_VECTOR, DebouncedInputChangeNotificationHandler);
+    setIntPriority(_CHANGE_NOTICE_VECTOR, 1, 0);
+    clearIntFlag(_CHANGE_NOTICE_IRQ);
+    setIntEnable(_CHANGE_NOTICE_IRQ);
+#else
 
-//    Serial.println("Configured");
+    volatile p32_ioport *   iop;
+    int port, bit;
+    if ((port = digitalPinToPort(_pin)) == NOT_A_PIN)
+    {
+        return;
+    }
 
+    //* Obtain pointer to the registers for this io port.
+    iop = (p32_ioport *)portRegisters(port);
 
-//    CNCONbits.ON    =   1;
-//    CNCONbits.SIDL  =   0;
+    //* Obtain bit mask for the specific bit for this pin.
+    bit = digitalPinToBitMask(_pin);
 
-//    Serial.print("Set = ");
-//    Serial.println(CNEN, HEX);
-
+    iop->cnen.set = bit;
+    iop->cncon.set = 1<<15;
+    setIntVector(_CHANGE_NOTICE_VECTOR, DebouncedInputChangeNotificationHandler);
+    setIntPriority(_CHANGE_NOTICE_VECTOR, 1, 0);
+    if (port == _IOPORT_PA) {
+        clearIntFlag(_CHANGE_NOTICE_A_IRQ);
+        setIntEnable(_CHANGE_NOTICE_A_IRQ);
+    }
+    if (port == _IOPORT_PB) {
+        clearIntFlag(_CHANGE_NOTICE_B_IRQ);
+        setIntEnable(_CHANGE_NOTICE_B_IRQ);
+    }
+    if (port == _IOPORT_PC) {
+        clearIntFlag(_CHANGE_NOTICE_C_IRQ);
+        setIntEnable(_CHANGE_NOTICE_C_IRQ);
+    }
+#endif
     _onChange = func;
     _intDir = dir;
     _intTime = 0;
