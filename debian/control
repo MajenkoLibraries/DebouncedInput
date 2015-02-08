@@ -10,4 +10,3 @@ Package: libdebouncedinput
 Provides: DebouncedInput.h
 Architecture: all
 Description: Debouncing Input class
- 
