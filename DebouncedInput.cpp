@@ -148,7 +148,6 @@ struct CNInputs *ChangeNotificationInputList = NULL;
 void __attribute__((interrupt)) DebouncedInputChangeNotificationHandler() {
     struct CNInputs *scan;
 
-    (void)PORTA;
     for (scan = ChangeNotificationInputList; scan; scan = scan->next) {
         scan->in->callOnChange();
     }
@@ -186,7 +185,7 @@ void DebouncedInput::callOnChange() {
 
 void DebouncedInput::attachInterrupt(void (*func)(int), int dir) {
 
-#if defined(CNEN)
+#if defined(_CHANGE_NOTICE_IRQ)
     int cn = digitalPinToCN(_pin);
 
     if (cn == NOT_CN_PIN) {
