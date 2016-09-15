@@ -1,0 +1,13 @@
+{
+  "name": "DebouncedInput",
+  "keywords": "button, input, debounce",
+  "description": "Button debouncing class",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/MajenkoLibraries/DebouncedInput"
+  },
+  "version": "1.0.13",
+  "frameworks": "arduino",
+  "platforms": "*"
+}
