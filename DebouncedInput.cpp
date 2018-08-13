@@ -137,7 +137,8 @@ void DebouncedInput::clearTimes() {
     }
 }
 
-#if defined(__PIC32MX__) || defined(__PIC32MZ__)
+#if defined(__PIC32MX__) && !defined(__PIC32_PPS__)
+
 struct CNInputs {
     DebouncedInput *in;
     struct CNInputs *next;
