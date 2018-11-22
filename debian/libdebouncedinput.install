@@ -1,7 +1,0 @@
-DebouncedInput.cpp libraries/IO/DebouncedInput/
-DebouncedInput.h libraries/IO/DebouncedInput/
-LICENSE usr/share/doc/libdebouncedinput/
-README.md usr/share/doc/libdebouncedinput/
-examples/TwoButtons/TwoButtons.ino libraries/IO/DebouncedInput/examples/TwoButtons
-examples/PressTimes/PressTimes.ino libraries/IO/DebouncedInput/examples/PressTimes
-examples/ThreePress/ThreePress.ino libraries/IO/DebouncedInput/examples/ThreePress
