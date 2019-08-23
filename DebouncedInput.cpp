@@ -251,3 +251,8 @@ void DebouncedInput::attachInterrupt(void (*func)(int), int dir) {
 }
 
 #endif
+
+void DebouncedInput::setDebounceTime(unsigned long dbt) {
+    _debounceTime = dbt;
+}
+
